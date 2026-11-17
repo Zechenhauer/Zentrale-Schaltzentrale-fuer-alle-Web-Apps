@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schaltzentrale - Webmanagement Jürgen Schützendorf</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        amber: { 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+                        gold: { DEFAULT: '#d4af37', light: '#e6ca65', dark: '#aa8c2c' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- FontAwesome für UI-Symbole -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glow-gold:hover { box-shadow: 0 0 20px rgba(212, 175, 55, 0.2); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col justify-between selection:bg-gold selection:text-gray-950">
+
+    <!-- PASSWORT-MODAL FÜR GESCHÜTZTE KATEGORIEN -->
+    <div id="categoryAuthModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-8 shadow-2xl text-center relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 w-32 h-32 bg-gold/10 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold to-amber-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-gold/20 text-gray-950 text-2xl font-bold">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            
+            <h2 class="text-xl font-bold text-white mb-2">Bereich geschützt</h2>
+            <p id="categoryAuthDesc" class="text-xs text-gray-400 mb-6">Bitte gib das Passwort ein, um diesen Bereich zu öffnen.</p>
+            
+            <form onsubmit="verifyCategoryPassword(event)" class="space-y-4">
+                <div>
+                    <input type="password" id="categoryAccessPassword" placeholder="Passwort..." required
+                        class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-center text-gray-200 placeholder-gray-600 focus:outline-none focus:border-gold transition-colors tracking-widest">
+                </div>
+                <div id="categoryPasswordError" class="text-xs text-red-400 hidden">Falsches Passwort!</div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeCategoryAuthModal()" class="w-1/2 py-3 rounded-xl bg-gray-800 text-gray-300 font-semibold text-xs hover:bg-gray-700 transition-all">Abbrechen</button>
+                    <button type="submit" class="w-1/2 py-3 rounded-xl bg-gold text-gray-950 font-semibold text-xs hover:bg-gold-light transition-all shadow-lg shadow-gold/10">Freischalten</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ZUGRIFFS- / ANFRAGE MODAL FÜR USER -->
+    <div id="requestModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-8 shadow-2xl text-center relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 w-32 h-32 bg-gold/10 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold to-amber-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-gold/20 text-gray-950 text-2xl font-bold">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            
+            <h2 class="text-xl font-bold text-white mb-2">Zugriff anfragen</h2>
+            <p id="requestModalDesc" class="text-xs text-gray-400 mb-6">Bitte gib deinen Namen ein, um den Zugriff auf diese App bei Jürgen anzufordern.</p>
+            
+            <div id="requestFormContainer">
+                <form onsubmit="submitAccessRequest(event)" class="space-y-4">
+                    <div>
+                        <input type="text" id="userNameInput" placeholder="Dein Name..." required
+                            class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-center text-gray-200 placeholder-gray-600 focus:outline-none focus:border-gold transition-colors">
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="button" onclick="closeRequestModal()" class="w-1/2 py-3 rounded-xl bg-gray-800 text-gray-300 font-semibold text-xs hover:bg-gray-700 transition-all">Abbrechen</button>
+                        <button type="submit" class="w-1/2 py-3 rounded-xl bg-gold text-gray-950 font-semibold text-xs hover:bg-gold-light transition-all shadow-lg shadow-gold/10">Anfrage senden</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="waitingContainer" class="hidden space-y-4">
+                <div class="p-4 bg-gray-950 border border-gray-800 rounded-xl text-xs text-gray-300">
+                    <i class="fa-solid fa-circle-notch fa-spin text-gold mr-2"></i> Anfrage gesendet! Warte auf Freigabe durch Jürgen...
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="checkApprovalStatus()" class="w-1/2 py-3 rounded-xl bg-gold text-gray-950 font-semibold text-xs hover:bg-gold-light transition-all">Status prüfen</button>
+                    <button onclick="closeRequestModal()" class="w-1/2 py-3 rounded-xl bg-gray-800 text-gray-300 font-semibold text-xs hover:bg-gray-700 transition-all">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN PANEL MODAL (Geschützt mit 1919) -->
+    <div id="adminModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-4xl p-6 sm:p-8 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-800">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-user-gear text-gold"></i> Admin-Bereich: Zugriffsanfragen
+                </h3>
+                <button onclick="closeAdminModal()" class="text-gray-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="overflow-y-auto flex-grow pr-2">
+                <div id="adminRequestsList" class="space-y-3">
+                    <p class="text-xs text-gray-500 text-center py-8">Lade Anfragen...</p>
+                </div>
+            </div>
+
+            <div class="pt-4 mt-4 border-t border-gray-800 flex justify-end">
+                <button onclick="loadAdminRequests()" class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 flex items-center gap-2">
+                    <i class="fa-solid fa-rotate"></i> Liste aktualisieren
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hauptinhalt -->
+    <div class="flex flex-col min-h-screen justify-between">
+        <!-- Header -->
+        <header class="sticky top-0 z-40 bg-gray-900/90 backdrop-blur-md border-b border-gray-800">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
+                <!-- Branding mit deinem Foto & Namen -->
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-full ring-2 ring-gold/50 overflow-hidden shadow-lg shadow-gold/20 flex-shrink-0 bg-gray-800">
+                        <img src="https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/Bilder/Juergen%20Schuetzendorf.png" alt="Jürgen Schützendorf" class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            Webmanagement Jürgen Schützendorf <span class="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold border border-gold/30">Master Hub</span>
+                        </h1>
+                        <p class="text-xs text-gray-400">Zentrale Schaltzentrale für alle Web-Apps & Tools</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <div class="relative hidden sm:block w-64 md:w-80">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                            <i class="fa-solid fa-search"></i>
+                        </span>
+                        <input type="text" id="searchInput" placeholder="Apps durchsuchen..." 
+                            class="w-full bg-gray-950 border border-gray-800 rounded-lg pl-10 pr-4 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold transition-colors">
+                    </div>
+                    <button onclick="promptAdminLogin()" title="Admin-Bereich" class="w-10 h-10 rounded-xl bg-gray-800 hover:bg-gold hover:text-gray-950 text-gold flex items-center justify-center transition-all shadow-inner">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </button>
+                    <div class="text-right hidden md:block">
+                        <div id="liveClock" class="text-xs font-mono font-medium text-gold">--:--:--</div>
+                        <div id="liveDate" class="text-[10px] text-gray-400">---</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+            <div class="relative block sm:hidden mb-6">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                    <i class="fa-solid fa-search"></i>
+                </span>
+                <input type="text" id="searchInputMobile" placeholder="Apps durchsuchen..." 
+                    class="w-full bg-gray-900 border border-gray-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold">
+            </div>
+
+            <!-- SCHÖNE KACHELN / GRID ANSTATT SCHLEIFEN-SCROLLEN -->
+            <div class="mb-8">
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-gold"></i> Kategorien & Bereiche
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="categoryGrid">
+                    <!-- Wird dynamisch per JS gerendert für perfekte Farbanpassung & Counts -->
+                </div>
+            </div>
+
+            <!-- Keine Ergebnisse -->
+            <div id="noResults" class="hidden text-center py-16">
+                <div class="w-16 h-16 bg-gray-900 border border-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-500 text-xl">
+                    <i class="fa-solid fa-search"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-300">Keine Apps gefunden</h3>
+            </div>
+
+            <!-- App Grid -->
+            <div id="appGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-900 border-t border-gray-800 mt-12 py-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500">
+                <div>Webmanagement Jürgen Schützendorf • Individuelles App-Ökosystem</div>
+                <div class="flex items-center gap-4">
+                    <span class="flex items-center gap-1.5 text-emerald-400">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> System Online
+                    </span>
+                    <span>•</span>
+                    <button onclick="openAddModal()" class="text-gold hover:underline flex items-center gap-1">
+                        <i class="fa-solid fa-plus-circle"></i> App hinzufügen
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal zum Hinzufügen -->
+    <div id="addModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg p-6 relative shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle text-gold"></i> Neue App hinzufügen
+                </h3>
+                <button onclick="closeAddModal()" class="text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="addAppForm" onsubmit="saveNewApp(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">App Name</label>
+                    <input type="text" id="newAppName" required placeholder="z.B. Live Ticker" 
+                        class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gold">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Kategorie</label>
+                    <select id="newAppCategory" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gold">
+                        <option value="api-football">API-Football Apps</option>
+                        <option value="espn">ESPN Apps</option>
+                        <option value="eisen-kraemer">Eisen Krämer</option>
+                        <option value="pv-anlage">PV-Anlage & Energie</option>
+                        <option value="darts-eingabe">Darts Eingabemasken</option>
+                        <option value="tv-kapellen">TV Kapellen</option>
+                        <option value="scherpenberger">Scherpenberger</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">URL / Link</label>
+                    <input type="text" id="newAppUrl" required placeholder="https://..." 
+                        class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gold">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Beschreibung</label>
+                    <textarea id="newAppDesc" rows="2" placeholder="Kurze Beschreibung..." 
+                        class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gold"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Logo URL</label>
+                    <input type="text" id="newAppLogo" placeholder="https://..." 
+                        class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gold">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeAddModal()" class="px-4 py-2 rounded-lg text-xs font-medium bg-gray-800 text-gray-300">Abbrechen</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg text-xs font-medium bg-gold text-gray-950 hover:bg-gold-light font-semibold">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Logik -->
+    <script>
+        const SUPABASE_URL = 'https://lhusylpjnujlqomougmg.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_yXEueWILvAq-Vm2VfTuYyg_BIQeE1KK';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const ADMIN_PASSWORD = "1919";
+        const CATEGORY_PASSWORD = "flecki";
+        const DARTS_PASSWORD = "kapellen";
+        const TVK_PASSWORD = "kapellen";
+        const SCHERPENBERGER_PASSWORD = "pimmelprinzen";
+        
+        let activeTargetApp = null;
+        let pendingProtectedCategory = null;
+        
+        const ADMIN_AVATAR = 'https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/Bilder/Juergen%20Schuetzendorf.png';
+        const TVK_APP_LOGO = 'https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/Bilder/app-icon.png';
+
+        const defaultApps = [
+            // API-FOOTBALL APPS
+            { id: 'af-1', name: '1. Bundesliga', category: 'api-football', url: 'https://zechenhauer.github.io/1.bundesliga/', description: 'Live-Tabelle, Spieltag und Ergebnisse der 1. Bundesliga.', logo: 'https://media.api-sports.io/football/leagues/78.png', badge: '1. Buli', isCustom: false },
+            { id: 'af-2', name: '1. Bundesliga Hybrid', category: 'api-football', url: 'https://zechenhauer.github.io/1.buli_hybrid/', description: 'Hybrid-Ansatz für erweiterte Bundesliga-Daten.', logo: 'https://media.api-sports.io/football/leagues/78.png', badge: 'Hybrid', isCustom: false },
+            { id: 'af-3', name: '2. Bundesliga', category: 'api-football', url: 'https://zechenhauer.github.io/2.bundesliga/', description: 'Live-Ergebnisse und Tabellenstand der 2. Bundesliga.', logo: 'https://media.api-sports.io/football/leagues/79.png', badge: '2. Buli', isCustom: false },
+            { id: 'af-4', name: '3. Liga', category: 'api-football', url: 'https://zechenhauer.github.io/3.liga/', description: 'Spieltag und Live-Ticker für die 3. Liga.', logo: 'https://media.api-sports.io/football/leagues/80.png', badge: '3. Liga', isCustom: false },
+            { id: 'af-5', name: 'Bayern München Bundesliga', category: 'api-football', url: 'https://zechenhauer.github.io/Mia-san-mia/', description: 'Spezifisches Dashboard rund um den FC Bayern München.', logo: 'https://media.api-sports.io/football/teams/157.png', badge: 'FCB', isCustom: false },
+            { id: 'af-6', name: 'SV Scherpenberg Oberliga', category: 'api-football', url: 'https://zechenhauer.github.io/scherpenberg_ati/', description: 'Live-Daten und Statistiken für den SV Scherpenberg in der Oberliga.', logo: 'https://media.api-sports.io/football/leagues/81.png', badge: 'Oberliga', isCustom: false },
+            { id: 'af-7', name: 'UEFA Champions Hybrid', category: 'api-football', url: 'https://zechenhauer.github.io/Champions_League_hybrid/', description: 'Hybrid-Live-Tracking für die UEFA Champions League.', logo: 'https://media.api-sports.io/football/leagues/2.png', badge: 'UCL Hybrid', isCustom: false },
+            { id: 'af-8', name: 'UEFA Champions Api', category: 'api-football', url: 'https://zechenhauer.github.io/championliga26-27/', description: 'Champions League Spielpläne und Livescores (26/27).', logo: 'https://media.api-sports.io/football/leagues/2.png', badge: 'UCL API', isCustom: false },
+            { id: 'af-9', name: 'UEFA Euro Lig Api', category: 'api-football', url: 'https://zechenhauer.github.io/api_europa_league/', description: 'Europa League Live-Ticker und Tabellen über API.', logo: 'https://media.api-sports.io/football/leagues/3.png', badge: 'UEL', isCustom: false },
+            { id: 'af-10', name: 'UEFA Nations League', category: 'api-football', url: 'https://zechenhauer.github.io/api-nationalmannschaft/', description: 'Nationalmannschafts-Daten zur UEFA Nations League.', logo: 'https://media.api-sports.io/football/leagues/5.png', badge: 'Nations', isCustom: false },
+            { id: 'af-11', name: 'UEFA Conference League', category: 'api-football', url: 'https://zechenhauer.github.io/api-nationalmannschaft/', description: 'Conference League Begegnungen und Live-Ergebnisse.', logo: 'https://media.api-sports.io/football/leagues/848.png', badge: 'UECL', isCustom: false },
+            { id: 'af-12', name: 'Frauen Bundesliga', category: 'api-football', url: 'https://zechenhauer.github.io/buli-frauen/', description: 'Spieltage und Live-Tabelle der Frauen Bundesliga.', logo: 'https://media.api-sports.io/football/leagues/131.png', badge: 'Frauen', isCustom: false },
+            { id: 'af-13', name: 'DFB Pokal 2026', category: 'api-football', url: 'https://zechenhauer.github.io/dfb_pokal_26/', description: 'K.O.-Runden, Paarungen und Livescores im DFB-Pokal.', logo: 'https://media.api-sports.io/football/leagues/81.png', badge: 'DFB Pokal', isCustom: false },
+            { id: 'af-14', name: 'Regionalliga West', category: 'api-football', url: 'https://zechenhauer.github.io/regionalliga_west/', description: 'Live-Ergebnisse und Tabellen der Regionalliga West.', logo: 'https://media.api-sports.io/football/leagues/82.png', badge: 'Regio West', isCustom: false },
+            { id: 'af-15', name: 'Frankreich Ligue 1', category: 'api-football', url: 'https://zechenhauer.github.io/api_frankreich/', description: 'Französische Ligue 1 Live-Daten und Statistiken.', logo: 'https://media.api-sports.io/football/leagues/61.png', badge: 'Ligue 1', isCustom: false },
+            { id: 'af-16', name: 'Spanien La Liga', category: 'api-football', url: 'https://zechenhauer.github.io/api_spanien/', description: 'Spanische La Liga Spieltage und Live-Tabelle.', logo: 'https://media.api-sports.io/football/leagues/140.png', badge: 'La Liga', isCustom: false },
+            { id: 'af-17', name: 'England Premier League', category: 'api-football', url: 'https://zechenhauer.github.io/api_England/', description: 'Premier League Live-Ticker und Spielstände.', logo: 'https://media.api-sports.io/football/leagues/39.png', badge: 'Premier', isCustom: false },
+            { id: 'af-18', name: 'Italien Serie A', category: 'api-football', url: 'https://zechenhauer.github.io/api_italien/', description: 'Italienische Serie A Ergebnisse und Tabellen.', logo: 'https://media.api-sports.io/football/leagues/135.png', badge: 'Serie A', isCustom: false },
+            { id: 'af-19', name: 'Holland Eredivisie', category: 'api-football', url: 'https://zechenhauer.github.io/api_holland/', description: 'Niederländische Eredivisie Live-Daten.', logo: 'https://media.api-sports.io/football/leagues/88.png', badge: 'Eredivisie', isCustom: false },
+
+            // ESPN APPS
+            { id: 'espn-1', name: '1. Bundesliga (ESPN)', category: 'espn', url: 'https://zechenhauer.github.io/espn_1.bl/', description: 'Live-Daten und Ticker der 1. Bundesliga über ESPN.', logo: 'https://media.api-sports.io/football/leagues/78.png', badge: 'ESPN', isCustom: false },
+            { id: 'espn-2', name: '2. Bundesliga (ESPN)', category: 'espn', url: 'https://zechenhauer.github.io/2te_liga/', description: 'Zweite Bundesliga Spieltag- und Tabellenansicht.', logo: 'https://media.api-sports.io/football/leagues/79.png', badge: 'ESPN', isCustom: false },
+            { id: 'espn-3', name: '3. Liga & MSV (ESPN)', category: 'espn', url: 'https://zechenhauer.github.io/3_liga_msv/', description: '3. Liga Ticker mit Fokus auf den MSV Duisburg.', logo: 'https://media.api-sports.io/football/leagues/80.png', badge: 'ESPN', isCustom: false },
+            { id: 'espn-4', name: 'UEFA Nations League (ESPN)', category: 'espn', url: 'https://zechenhauer.github.io/-UEFA-Nations-League-26-27/', description: 'Nations League Begegnungen (26/27).', logo: 'https://media.api-sports.io/football/leagues/5.png', badge: 'UEFA', isCustom: false },
+            { id: 'espn-5', name: 'UEFA Euro League (ESPN)', category: 'espn', url: 'https://zechenhauer.github.io/uefa_euro_push/', description: 'Euro League Ticker und Push-Benachrichtigungen.', logo: 'https://media.api-sports.io/football/leagues/3.png', badge: 'UEFA', isCustom: false },
+            { id: 'espn-6', name: 'SV Scherpenberg Oberliga (ESPN)', category: 'espn', url: 'https://zechenhauer.github.io/Tabelle_Oberliga_Nordrhein_26_27/', description: 'Oberliga Niederrhein Live-Daten für den SV Scherpenberg.', logo: 'https://media.api-sports.io/football/leagues/81.png', badge: 'Oberliga', isCustom: false },
+            { id: 'espn-7', name: 'Liverpool App', category: 'espn', url: 'https://zechenhauer.github.io/england/', description: 'Spezifisches Dashboard rund um den FC Liverpool.', logo: 'https://media.api-sports.io/football/teams/40.png', badge: 'LFC', isCustom: false },
+            { id: 'espn-8', name: 'Barcelona App', category: 'espn', url: 'https://zechenhauer.github.io/spanien/', description: 'Live-Tracker und Infos zum FC Barcelona.', logo: 'https://media.api-sports.io/football/teams/529.png', badge: 'Barça', isCustom: false },
+            { id: 'espn-9', name: 'AS Rom App', category: 'espn', url: 'https://zechenhauer.github.io/italien/', description: 'AS Rom Dashboard und Spielstandsanzeige.', logo: 'https://media.api-sports.io/football/teams/497.png', badge: 'AS Roma', isCustom: false },
+            { id: 'espn-10', name: 'Paris Saint Germain App', category: 'espn', url: 'https://zechenhauer.github.io/frankreich/', description: 'PSG Live-Tracking und Spieltagsübersicht.', logo: 'https://media.api-sports.io/football/teams/85.png', badge: 'PSG', isCustom: false },
+            { id: 'espn-11', name: 'SV Budberg 1 Landesliga', category: 'espn', url: 'https://zechenhauer.github.io/Landesliga_Gruppe_1/', description: 'Landesliga Gruppe 1 Live-Daten für den SV Budberg 1.', logo: 'https://media.api-sports.io/football/leagues/81.png', badge: 'Budberg', isCustom: false },
+            { id: 'espn-12', name: 'SV Budberg 3 Kreisliga A', category: 'espn', url: 'https://zechenhauer.github.io/budberg3/', description: 'Kreisliga A Ticker für den SV Budberg 3.', logo: 'https://media.api-sports.io/football/leagues/81.png', badge: 'Budberg 3', isCustom: false },
+            { id: 'espn-13', name: 'SF 06 Sterkrade Kreisliga B', category: 'espn', url: 'https://zechenhauer.github.io/SF_06_Sterkrade/', description: 'Kreisliga B Spieltagsergebnisse für SF 06 Sterkrade.', logo: 'https://media.api-sports.io/football/leagues/81.png', badge: 'Sterkrade', isCustom: false },
+            { id: 'espn-14', name: 'NBA Basketball', category: 'espn', url: 'https://zechenhauer.github.io/nba26_27/', description: 'NBA Spielpläne, Scores und Tabellen (26/27).', logo: '', icon: 'fa-basketball', badge: 'NBA', isCustom: false },
+            { id: 'espn-15', name: 'DEL Krefeld Pinguine', category: 'espn', url: 'https://zechenhauer.github.io/DEL_2026_27/', description: 'Eishockey Live-Ticker für die Krefeld Pinguine (DEL).', logo: '', icon: 'fa-hockey-puck', badge: 'DEL', isCustom: false },
+
+            // EISEN KRÄMER APPS
+            { id: 'ek-1', name: 'Tour Planung Stunden', category: 'eisen-kraemer', url: 'https://zechenhauer.github.io/Eisen_Kr-mer_Planung_Touren/', description: 'Tour- und Stundenplanung für Eisen Krämer.', logo: ADMIN_AVATAR, badge: 'Tour', isCustom: false },
+            { id: 'ek-2', name: 'Fahrtenbuch Schützendorf', category: 'eisen-kraemer', url: 'https://zechenhauer.github.io/fahrtenbuch_kalenderansicht/', description: 'Automatisierte Fahrtenbuch-Kalenderansicht.', logo: ADMIN_AVATAR, badge: 'Fahrtenbuch', isCustom: false },
+            { id: 'ek-3', name: 'Team Planer Touren', category: 'eisen-kraemer', url: 'https://zechenhauer.github.io/dienstplan_fahrer/', description: 'Dienst- und Tourenplaner für das Fahrer-Team.', logo: ADMIN_AVATAR, badge: 'Team', isCustom: false },
+
+            // PV-ANLAGE & ENERGIE APPS
+            { id: 'pv-1', name: 'PV Anlage Home', category: 'pv-anlage', url: 'https://zechenhauer.github.io/pv-anlage/', description: 'Zentrale Home-Ansicht und Live-Monitoring der PV-Anlage.', logo: ADMIN_AVATAR, badge: 'PV Home', isCustom: false },
+            { id: 'pv-2', name: 'Zustandsabfrage', category: 'pv-anlage', url: 'https://zechenhauer.github.io/Zustandsabfragen/', description: 'Abfrage des aktuellen System- und Speicherstatus.', logo: ADMIN_AVATAR, badge: 'Status', isCustom: false },
+            { id: 'pv-3', name: 'Festnetz Monitor', category: 'pv-anlage', url: 'https://zechenhauer.github.io/festnetz-monitor/', description: 'Überwachung des Festnetz- und Telekommunikationsstatus.', logo: ADMIN_AVATAR, badge: 'Netz', isCustom: false },
+
+            // DARTS EINGABEMASKEN
+            { id: 'dart-1', name: 'TV Kapellen 1', category: 'darts-eingabe', url: 'https://zechenhauer.github.io/eingabe_TVK_01/', description: 'Darts Eingabemaske für TV Kapellen 1.', logo: TVK_APP_LOGO, badge: 'TVK 1', isCustom: false },
+            { id: 'dart-2', name: 'TV Kapellen 2', category: 'darts-eingabe', url: 'https://zechenhauer.github.io/eingabe_TVK02/', description: 'Darts Eingabemaske für TV Kapellen 2.', logo: TVK_APP_LOGO, badge: 'TVK 2', isCustom: false },
+            { id: 'dart-3', name: 'TV Kapellen 3', category: 'darts-eingabe', url: 'https://zechenhauer.github.io/eingabe_TVK03/', description: 'Darts Eingabemaske für TV Kapellen 3.', logo: TVK_APP_LOGO, badge: 'TVK 3', isCustom: false },
+            { id: 'dart-4', name: 'TV Kapellen 4', category: 'darts-eingabe', url: 'https://zechenhauer.github.io/eingabemaske_TVK4/', description: 'Darts Eingabemaske für TV Kapellen 4.', logo: TVK_APP_LOGO, badge: 'TVK 4', isCustom: false },
+
+            // TV KAPELLEN APPS
+            { id: 'tvk-1', name: 'Saisonübersicht 1. Mannschaft', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/TV-Kapellen-1/', description: 'Saisonübersicht und Spielverlauf der 1. Mannschaft.', logo: TVK_APP_LOGO, badge: 'TVK 1', isCustom: false },
+            { id: 'tvk-2', name: 'Saisonübersicht 2. Mannschaft', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/TV-Kapellen-2/', description: 'Saisonübersicht und Spielverlauf der 2. Mannschaft.', logo: TVK_APP_LOGO, badge: 'TVK 2', isCustom: false },
+            { id: 'tvk-3', name: 'Saisonübersicht 3. Mannschaft', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/saison26-27/', description: 'Saisonübersicht und Spielverlauf der 3. Mannschaft.', logo: TVK_APP_LOGO, badge: 'TVK 3', isCustom: false },
+            { id: 'tvk-4', name: 'Saisonübersicht 4. Mannschaft', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/TV-Kapellen-4/', description: 'Saisonübersicht und Spielverlauf der 4. Mannschaft.', logo: TVK_APP_LOGO, badge: 'TVK 4', isCustom: false },
+            { id: 'tvk-5', name: 'Persönliches Leistungs Dashboard', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/tvk-player-dashboard/', description: 'Persönliches Leistungs- und Statistik-Dashboard.', logo: TVK_APP_LOGO, badge: 'Dashboard', isCustom: false },
+            { id: 'tvk-6', name: 'TVK 1 Teamstatistik', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/tvk1-teamstatistik/', description: 'Ausführliche Teamstatistiken für TVK 1.', logo: TVK_APP_LOGO, badge: 'Stats 1', isCustom: false },
+            { id: 'tvk-7', name: 'TVK 2 Teamstatistik', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/tvk2-team-statistik/', description: 'Ausführliche Teamstatistiken für TVK 2.', logo: TVK_APP_LOGO, badge: 'Stats 2', isCustom: false },
+            { id: 'tvk-8', name: 'TVK 3 Teamstatistik', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/tvk3-team-statistik/', description: 'Ausführliche Teamstatistiken für TVK 3.', logo: TVK_APP_LOGO, badge: 'Stats 3', isCustom: false },
+            { id: 'tvk-9', name: 'TVK 4 Teamstatistik', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/tvk4-team-statistik/', description: 'Ausführliche Teamstatistiken für TVK 4.', logo: TVK_APP_LOGO, badge: 'Stats 4', isCustom: false },
+            { id: 'tvk-10', name: 'Spielerkarten', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/Spielerkarten-Alle-Liga-Spieler/', description: 'Spielerkarten aller Liga-Spieler im Überblick.', logo: TVK_APP_LOGO, badge: 'Spielerkarten', isCustom: false },
+            { id: 'tvk-11', name: 'Spieltage im Überblick', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/dart_spielplaner/', description: 'Konsolidierter Dart-Spielplaner für alle Spieltage.', logo: TVK_APP_LOGO, badge: 'Spielplan', isCustom: false },
+            { id: 'tvk-12', name: 'Ligen u. Tabellen', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/TVK-Tabellen/', description: 'Aktuelle Tabellen und Ligenübersichten.', logo: TVK_APP_LOGO, badge: 'Tabellen', isCustom: false },
+            { id: 'tvk-13', name: 'Vereinranking Liga Spieler', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/Spieler_Vereinsranking/', description: 'Internes Vereinsranking der Ligaspieler.', logo: TVK_APP_LOGO, badge: 'Ranking', isCustom: false },
+            { id: 'tvk-14', name: 'Statistiken Liga Spieler mit AVG', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/statistiken_average/', description: 'Detaillierte Spielerstatistiken inklusive 3-Dart-Average.', logo: TVK_APP_LOGO, badge: 'Averages', isCustom: false },
+
+            // SCHERPENBERGER APPS
+            { id: 'scherp-1', name: 'Kaderplaner', category: 'scherpenberger', url: 'https://zechenhauer.github.io/Spieltags-Planung/', description: 'Kader- und Spieltagsplanung für Scherpenberg.', logo: ADMIN_AVATAR, badge: 'Kader', isCustom: false },
+            { id: 'scherp-2', name: 'Aktueller Stand zum Löhnen', category: 'scherpenberger', url: 'https://zechenhauer.github.io/scherpenberger_dartkasse/', description: 'Dartkasse und aktueller Stand der Strafen / Einzahlungen.', logo: ADMIN_AVATAR, badge: 'Dartkasse', isCustom: false }
+        ];
+
+        let apps = JSON.parse(localStorage.getItem('schaltzentrale_apps')) || defaultApps;
+        let currentCategory = 'api-football';
+        let searchQuery = '';
+
+        const categoriesConfig = [
+            { id: 'api-football', name: 'API-Football Apps', icon: 'fa-futbol', color: 'from-blue-600/20 to-indigo-600/20 border-blue-500/30 text-blue-400', protected: false },
+            { id: 'espn', name: 'ESPN Apps', icon: 'fa-tv', color: 'from-amber-600/20 to-orange-600/20 border-amber-500/30 text-amber-400', protected: false },
+            { id: 'eisen-kraemer', name: 'Eisen Krämer', icon: 'fa-industry', color: 'from-gold/20 to-amber-600/20 border-gold/40 text-gold', protected: true },
+            { id: 'pv-anlage', name: 'PV-Anlage & Energie', icon: 'fa-solar-panel', color: 'from-emerald-600/20 to-teal-600/20 border-emerald-500/30 text-emerald-400', protected: true },
+            { id: 'darts-eingabe', name: 'Darts Eingabemasken', icon: 'fa-bullseye', color: 'from-purple-600/20 to-pink-600/20 border-purple-500/30 text-purple-400', protected: true },
+            { id: 'tv-kapellen', name: 'TV Kapellen', icon: 'fa-shield-halved', color: 'from-gold/20 to-yellow-600/20 border-gold/40 text-gold', protected: true },
+            { id: 'scherpenberger', name: 'Scherpenberger', icon: 'fa-crosshairs', color: 'from-red-600/20 to-rose-600/20 border-red-500/30 text-red-400', protected: true }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            activateCategory('api-football');
+            renderCategoriesGrid();
+            renderApps();
+            updateCounts();
+            setupLiveClock();
+
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                document.getElementById('searchInputMobile').value = searchQuery;
+                renderApps();
+            });
+            document.getElementById('searchInputMobile').addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                document.getElementById('searchInput').value = searchQuery;
+                renderApps();
+            });
+        });
+
+        function setupLiveClock() {
+            function update() {
+                const now = new Date();
+                document.getElementById('liveClock').textContent = now.toLocaleTimeString('de-DE');
+                document.getElementById('liveDate').textContent = now.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+            }
+            update();
+            setInterval(update, 1000);
+        }
+
+        function handleCategorySelection(category) {
+            const catObj = categoriesConfig.find(c => c.id === category);
+            if(catObj && catObj.protected) {
+                let sessionKey = category === 'eisen-kraemer' ? 'eisen_kraemer_unlocked' : category === 'pv-anlage' ? 'pv_anlage_unlocked' : category === 'darts-eingabe' ? 'darts_eingabe_unlocked' : category === 'tv-kapellen' ? 'tv_kapellen_unlocked' : 'scherpenberger_unlocked';
+                const unlocked = sessionStorage.getItem(sessionKey);
+                if(unlocked === 'true') {
+                    activateCategory(category);
+                } else {
+                    pendingProtectedCategory = category;
+                    document.getElementById('categoryAccessPassword').value = '';
+                    document.getElementById('categoryPasswordError').classList.add('hidden');
+                    document.getElementById('categoryAuthDesc').textContent = `Bitte gib das Passwort für den Bereich „${catObj.name}“ ein.`;
+                    document.getElementById('categoryAuthModal').classList.remove('hidden');
+                    document.getElementById('categoryAccessPassword').focus();
+                }
+            } else {
+                activateCategory(category);
+            }
+        }
+
+        function verifyCategoryPassword(e) {
+            e.preventDefault();
+            const val = document.getElementById('categoryAccessPassword').value;
+            let correctPassword = pendingProtectedCategory === 'scherpenberger' ? SCHERPENBERGER_PASSWORD : (pendingProtectedCategory === 'darts-eingabe' || pendingProtectedCategory === 'tv-kapellen') ? TVK_PASSWORD : CATEGORY_PASSWORD;
+            
+            if(val === correctPassword) {
+                let sessionKey = pendingProtectedCategory === 'eisen-kraemer' ? 'eisen_kraemer_unlocked' : pendingProtectedCategory === 'pv-anlage' ? 'pv_anlage_unlocked' : pendingProtectedCategory === 'darts-eingabe' ? 'darts_eingabe_unlocked' : pendingProtectedCategory === 'tv-kapellen' ? 'tv_kapellen_unlocked' : 'scherpenberger_unlocked';
+                sessionStorage.setItem(sessionKey, 'true');
+                const targetCat = pendingProtectedCategory;
+                closeCategoryAuthModal();
+                activateCategory(targetCat);
+            } else {
+                document.getElementById('categoryPasswordError').classList.remove('hidden');
+                document.getElementById('categoryAccessPassword').value = '';
+            }
+        }
+
+        function closeCategoryAuthModal() {
+            document.getElementById('categoryAuthModal').classList.add('hidden');
+            pendingProtectedCategory = null;
+        }
+
+        function activateCategory(category) {
+            currentCategory = category;
+            renderCategoriesGrid();
+            renderApps();
+        }
+
+        function renderCategoriesGrid() {
+            const gridEl = document.getElementById('categoryGrid');
+            gridEl.innerHTML = categoriesConfig.map(cat => {
+                const count = apps.filter(a => a.category === cat.id).length;
+                const isActive = currentCategory === cat.id;
+
+                return `
+                <div onclick="handleCategorySelection('${cat.id}')" 
+                    class="cursor-pointer bg-gradient-to-br ${cat.color} border rounded-xl p-4 flex items-center justify-between transition-all duration-300 group hover:scale-[1.02] shadow-md ${isActive ? 'ring-2 ring-gold border-gold' : 'hover:border-gray-600'}">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-gray-950/60 flex items-center justify-center text-lg ${cat.text || 'text-white'} shadow-inner group-hover:scale-110 transition-transform">
+                            <i class="fa-solid ${cat.icon}"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-white flex items-center gap-1.5">
+                                ${cat.name}
+                                ${cat.protected ? '<i class="fa-solid fa-lock text-[10px] text-gold"></i>' : ''}
+                            </div>
+                            <div class="text-[11px] text-gray-400">${count} Apps verfügbar</div>
+                        </div>
+                    </div>
+                    <div class="w-7 h-7 rounded-full bg-gray-950/40 flex items-center justify-center text-xs text-gray-300 group-hover:bg-gold group-hover:text-gray-950 transition-colors">
+                        <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function requestOpenApp(app, event) {
+            event.preventDefault();
+            if(app.url === '#') {
+                alert('Diese App hat noch keinen echten Link hinterlegt.');
+                return;
+            }
+
+            const approvedApps = JSON.parse(localStorage.getItem('approved_apps') || '[]');
+            if(approvedApps.includes(app.id)) {
+                window.open(app.url, '_blank');
+                return;
+            }
+
+            activeTargetApp = app;
+            document.getElementById('userNameInput').value = '';
+            document.getElementById('requestFormContainer').classList.remove('hidden');
+            document.getElementById('waitingContainer').classList.add('hidden');
+            document.getElementById('requestModalDesc').textContent = `Um "${app.name}" zu öffnen, fordere bitte den Zugriff bei Jürgen an.`;
+            document.getElementById('requestModal').classList.remove('hidden');
+        }
+
+        async function submitAccessRequest(e) {
+            e.preventDefault();
+            const userName = document.getElementById('userNameInput').value.trim();
+            if(!userName || !activeTargetApp) return;
+
+            const { error } = await supabaseClient
+                .from('app_anfragen')
+                .insert([{ user_name: userName, app_name: activeTargetApp.name, status: 'pending' }]);
+
+            if(error) {
+                alert('Fehler beim Senden der Anfrage: ' + error.message);
+                return;
+            }
+
+            document.getElementById('requestFormContainer').classList.add('hidden');
+            document.getElementById('waitingContainer').classList.remove('hidden');
+        }
+
+        async function checkApprovalStatus() {
+            const userName = document.getElementById('userNameInput').value.trim();
+            if(!userName || !activeTargetApp) return;
+
+            const { data, error } = await supabaseClient
+                .from('app_anfragen')
+                .select('*')
+                .eq('user_name', userName)
+                .eq('app_name', activeTargetApp.name)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if(error || !data || data.length === 0) {
+                alert('Keine Anfrage gefunden.');
+                return;
+            }
+
+            const req = data[0];
+            if(req.status === 'approved') {
+                let approvedApps = JSON.parse(localStorage.getItem('approved_apps') || '[]');
+                if(!approvedApps.includes(activeTargetApp.id)) {
+                    approvedApps.push(activeTargetApp.id);
+                    localStorage.setItem('approved_apps', JSON.stringify(approvedApps));
+                }
+                closeRequestModal();
+                window.open(activeTargetApp.url, '_blank');
+            } else if(req.status === 'rejected') {
+                alert('Deine Anfrage wurde von Jürgen abgelehnt.');
+                closeRequestModal();
+            } else {
+                alert('Deine Anfrage wartet noch auf Freigabe.');
+            }
+        }
+
+        function closeRequestModal() {
+            document.getElementById('requestModal').classList.add('hidden');
+            activeTargetApp = null;
+        }
+
+        function promptAdminLogin() {
+            const pwd = prompt("Bitte Admin-Passwort eingeben:");
+            if(pwd === ADMIN_PASSWORD) {
+                openAdminModal();
+            } else if(pwd !== null) {
+                alert('Falsches Passwort!');
+            }
+        }
+
+        async function openAdminModal() {
+            document.getElementById('adminModal').classList.remove('hidden');
+            loadAdminRequests();
+        }
+
+        function closeAdminModal() {
+            document.getElementById('adminModal').classList.add('hidden');
+        }
+
+        async function loadAdminRequests() {
+            const listEl = document.getElementById('adminRequestsList');
+            listEl.innerHTML = '<p class="text-xs text-gray-500 text-center py-8">Lade Anfragen aus Supabase...</p>';
+
+            const { data, error } = await supabaseClient
+                .from('app_anfragen')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if(error) {
+                listEl.innerHTML = `<p class="text-xs text-red-400 text-center py-8">Fehler beim Laden: ${error.message}</p>`;
+                return;
+            }
+
+            if(!data || data.length === 0) {
+                listEl.innerHTML = '<p class="text-xs text-gray-400 text-center py-8">Aktuell liegen keine Zugriffsanfragen vor.</p>';
+                return;
+            }
+
+            listEl.innerHTML = data.map(req => `
+                <div class="bg-gray-950 border border-gray-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-bold text-white">${req.user_name}</span>
+                            <span class="text-[10px] text-gray-400">• ${new Date(req.created_at).toLocaleString('de-DE')}</span>
+                        </div>
+                        <div class="text-xs text-gold">Möchte öffnen: <strong>${req.app_name}</strong></div>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <span class="text-[10px] px-2 py-1 rounded font-semibold ${req.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : req.status === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/30' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'}">
+                            ${req.status === 'approved' ? 'Erlaubt' : req.status === 'rejected' ? 'Abgelehnt' : 'Ausstehend'}
+                        </span>
+                        ${req.status !== 'approved' ? `<button onclick="updateRequestStatus(${req.id}, 'approved')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs text-white font-medium">Erlauben</button>` : ''}
+                        ${req.status !== 'rejected' ? `<button onclick="updateRequestStatus(${req.id}, 'rejected')" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-xs text-white font-medium">Ablehnen</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateRequestStatus(id, newStatus) {
+            const { error } = await supabaseClient
+                .from('app_anfragen')
+                .update({ status: newStatus })
+                .eq('id', id);
+
+            if(error) {
+                alert('Fehler beim Aktualisieren: ' + error.message);
+            } else {
+                loadAdminRequests();
+            }
+        }
+
+        function renderApps() {
+            const grid = document.getElementById('appGrid');
+            const noResults = document.getElementById('noResults');
+
+            const filtered = apps.filter(app => {
+                const matchesCategory = app.category === currentCategory;
+                const matchesSearch = app.name.toLowerCase().includes(searchQuery) || app.description.toLowerCase().includes(searchQuery);
+                return matchesCategory && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                noResults.classList.remove('hidden');
+                return;
+            }
+
+            noResults.classList.add('hidden');
+            const activeCatObj = categoriesConfig.find(c => c.id === currentCategory);
+
+            grid.innerHTML = `
+                <div class="col-span-full mb-2 flex items-center justify-between border-b border-gray-800 pb-3">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid ${activeCatObj ? activeCatObj.icon : 'fa-folder'} text-gold"></i> 
+                        ${activeCatObj ? activeCatObj.name : currentCategory}
+                    </h3>
+                    <span class="text-xs text-gray-400">${filtered.length} Apps angezeigt</span>
+                </div>
+            ` + filtered.map(app => {
+                let logoOrIconHTML = '';
+                if(app.logo && app.logo.trim() !== '') {
+                    logoOrIconHTML = `<div class="w-10 h-10 bg-white rounded-xl p-1.5 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
+                        <img src="${app.logo}" alt="${app.name}" class="w-full h-full object-contain">
+                    </div>`;
+                } else {
+                    logoOrIconHTML = `<div class="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center text-gold text-lg shadow-inner">
+                        <i class="fa-solid ${app.icon || 'fa-code'}"></i>
+                    </div>`;
+                }
+
+                return `
+                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col justify-between glow-gold transition-all duration-300 group hover:border-gold/50 relative overflow-hidden">
+                    <div class="absolute -right-10 -top-10 w-32 h-32 bg-gold/5 rounded-full blur-2xl group-hover:bg-gold/10 transition-all pointer-events-none"></div>
+                    <div>
+                        <div class="flex items-start justify-between mb-4">
+                            ${logoOrIconHTML}
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-gray-800 border border-gray-700 text-gray-300">
+                                    ${activeCatObj ? activeCatObj.name : app.category}
+                                </span>
+                                ${app.badge ? `<span class="text-[10px] font-semibold px-2.5 py-1 rounded bg-gold/10 text-gold border border-gold/30">${app.badge}</span>` : ''}
+                            </div>
+                        </div>
+                        <h3 class="text-base font-bold text-white mb-2 group-hover:text-gold transition-colors">${app.name}</h3>
+                        <p class="text-xs text-gray-400 line-clamp-2 leading-relaxed mb-6">${app.description}</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-800/80">
+                        <a href="#" onclick='requestOpenApp(${JSON.stringify(app)}, event)' class="inline-flex items-center gap-2 text-xs font-semibold text-gold hover:text-gold-light transition-colors">
+                            <span>App öffnen</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                        ${app.isCustom ? `<button onclick="deleteApp('${app.id}')" title="Löschen" class="text-gray-500 hover:text-red-400 text-xs transition-colors"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+
+        function updateCounts() {
+            // Counts aktualisieren sich automatisch im Grid
+        }
+
+        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); document.getElementById('addAppForm').reset(); }
+
+        function saveNewApp(e) {
+            e.preventDefault();
+            const newApp = {
+                id: 'custom-' + Date.now(),
+                name: document.getElementById('newAppName').value,
+                category: document.getElementById('newAppCategory').value,
+                url: document.getElementById('newAppUrl').value,
+                description: document.getElementById('newAppDesc').value,
+                logo: document.getElementById('newAppLogo').value || '',
+                icon: 'fa-code',
+                badge: 'Custom',
+                isCustom: true
+            };
+            apps.push(newApp);
+            localStorage.setItem('schaltzentrale_apps', JSON.stringify(apps));
+            closeAddModal();
+            renderCategoriesGrid();
+            renderApps();
+            updateCounts();
+        }
+
+        function deleteApp(id) {
+            if(confirm('Möchtest du diese App wirklich entfernen?')) {
+                apps = apps.filter(a => a.id !== id);
+                localStorage.setItem('schaltzentrale_apps', JSON.stringify(apps));
+                renderCategoriesGrid();
+                renderApps();
+                updateCounts();
+            }
+        }
+    </script>
+</body>
+</html>
