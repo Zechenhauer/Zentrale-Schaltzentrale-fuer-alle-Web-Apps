@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schaltzentrale - Webmanagement Jürgen Schützendorf</title>
+    
+    <!-- PWA / Homescreen App Icons (Neutraler Fallback / Standard-Icon) -->
+    <link rel="icon" type="image/png" href="https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/Bilder/Juergen%20Schuetzendorf.png">
+    <link rel="apple-touch-icon" href="https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/Bilder/Juergen%20Schuetzendorf.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Schaltzentrale">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -170,14 +178,12 @@
                     class="w-full bg-gray-900 border border-gray-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold">
             </div>
 
-            <!-- SCHÖNE KACHELN / GRID ANSTATT SCHLEIFEN-SCROLLEN -->
+            <!-- Kategorien Kachel-Layout -->
             <div class="mb-8">
                 <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                     <i class="fa-solid fa-layer-group text-gold"></i> Kategorien & Bereiche
                 </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="categoryGrid">
-                    <!-- Wird dynamisch per JS gerendert für perfekte Farbanpassung & Counts -->
-                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="categoryGrid"></div>
             </div>
 
             <!-- Keine Ergebnisse -->
@@ -231,8 +237,7 @@
                     <select id="newAppCategory" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gold">
                         <option value="api-football">API-Football Apps</option>
                         <option value="espn">ESPN Apps</option>
-                        <option value="eisen-kraemer">Eisen Krämer</option>
-                        <option value="pv-anlage">PV-Anlage & Energie</option>
+                        <option value="privat">Privat (Eisen Krämer & PV)</option>
                         <option value="darts-eingabe">Darts Eingabemasken</option>
                         <option value="tv-kapellen">TV Kapellen</option>
                         <option value="scherpenberger">Scherpenberger</option>
@@ -268,9 +273,9 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const ADMIN_PASSWORD = "1919";
-        const CATEGORY_PASSWORD = "flecki";
-        const DARTS_PASSWORD = "kapellen";
-        const TVK_PASSWORD = "kapellen";
+        const PRIVAT_PASSWORD = "flecki";
+        const DARTS_EINGABE_PASSWORD = "mila";
+        const TV_KAPELLEN_PASSWORD = "leon";
         const SCHERPENBERGER_PASSWORD = "pimmelprinzen";
         
         let activeTargetApp = null;
@@ -318,15 +323,13 @@
             { id: 'espn-14', name: 'NBA Basketball', category: 'espn', url: 'https://zechenhauer.github.io/nba26_27/', description: 'NBA Spielpläne, Scores und Tabellen (26/27).', logo: '', icon: 'fa-basketball', badge: 'NBA', isCustom: false },
             { id: 'espn-15', name: 'DEL Krefeld Pinguine', category: 'espn', url: 'https://zechenhauer.github.io/DEL_2026_27/', description: 'Eishockey Live-Ticker für die Krefeld Pinguine (DEL).', logo: '', icon: 'fa-hockey-puck', badge: 'DEL', isCustom: false },
 
-            // EISEN KRÄMER APPS
-            { id: 'ek-1', name: 'Tour Planung Stunden', category: 'eisen-kraemer', url: 'https://zechenhauer.github.io/Eisen_Kr-mer_Planung_Touren/', description: 'Tour- und Stundenplanung für Eisen Krämer.', logo: ADMIN_AVATAR, badge: 'Tour', isCustom: false },
-            { id: 'ek-2', name: 'Fahrtenbuch Schützendorf', category: 'eisen-kraemer', url: 'https://zechenhauer.github.io/fahrtenbuch_kalenderansicht/', description: 'Automatisierte Fahrtenbuch-Kalenderansicht.', logo: ADMIN_AVATAR, badge: 'Fahrtenbuch', isCustom: false },
-            { id: 'ek-3', name: 'Team Planer Touren', category: 'eisen-kraemer', url: 'https://zechenhauer.github.io/dienstplan_fahrer/', description: 'Dienst- und Tourenplaner für das Fahrer-Team.', logo: ADMIN_AVATAR, badge: 'Team', isCustom: false },
-
-            // PV-ANLAGE & ENERGIE APPS
-            { id: 'pv-1', name: 'PV Anlage Home', category: 'pv-anlage', url: 'https://zechenhauer.github.io/pv-anlage/', description: 'Zentrale Home-Ansicht und Live-Monitoring der PV-Anlage.', logo: ADMIN_AVATAR, badge: 'PV Home', isCustom: false },
-            { id: 'pv-2', name: 'Zustandsabfrage', category: 'pv-anlage', url: 'https://zechenhauer.github.io/Zustandsabfragen/', description: 'Abfrage des aktuellen System- und Speicherstatus.', logo: ADMIN_AVATAR, badge: 'Status', isCustom: false },
-            { id: 'pv-3', name: 'Festnetz Monitor', category: 'pv-anlage', url: 'https://zechenhauer.github.io/festnetz-monitor/', description: 'Überwachung des Festnetz- und Telekommunikationsstatus.', logo: ADMIN_AVATAR, badge: 'Netz', isCustom: false },
+            // PRIVAT APPS (Eisen Krämer & PV Anlage)
+            { id: 'priv-1', name: 'Tour Planung Stunden', category: 'privat', url: 'https://zechenhauer.github.io/Eisen_Kr-mer_Planung_Touren/', description: 'Tour- und Stundenplanung für Eisen Krämer.', logo: ADMIN_AVATAR, badge: 'Tour', isCustom: false },
+            { id: 'priv-2', name: 'Fahrtenbuch Schützendorf', category: 'privat', url: 'https://zechenhauer.github.io/fahrtenbuch_kalenderansicht/', description: 'Automatisierte Fahrtenbuch-Kalenderansicht.', logo: ADMIN_AVATAR, badge: 'Fahrtenbuch', isCustom: false },
+            { id: 'priv-3', name: 'Team Planer Touren', category: 'privat', url: 'https://zechenhauer.github.io/dienstplan_fahrer/', description: 'Dienst- und Tourenplaner für das Fahrer-Team.', logo: ADMIN_AVATAR, badge: 'Team', isCustom: false },
+            { id: 'priv-4', name: 'PV Anlage Home', category: 'privat', url: 'https://zechenhauer.github.io/pv-anlage/', description: 'Zentrale Home-Ansicht und Live-Monitoring der PV-Anlage.', logo: ADMIN_AVATAR, badge: 'PV Home', isCustom: false },
+            { id: 'priv-5', name: 'Zustandsabfrage', category: 'privat', url: 'https://zechenhauer.github.io/Zustandsabfragen/', description: 'Abfrage des aktuellen System- und Speicherstatus.', logo: ADMIN_AVATAR, badge: 'Status', isCustom: false },
+            { id: 'priv-6', name: 'Festnetz Monitor', category: 'privat', url: 'https://zechenhauer.github.io/festnetz-monitor/', description: 'Überwachung des Festnetz- und Telekommunikationsstatus.', logo: ADMIN_AVATAR, badge: 'Netz', isCustom: false },
 
             // DARTS EINGABEMASKEN
             { id: 'dart-1', name: 'TV Kapellen 1', category: 'darts-eingabe', url: 'https://zechenhauer.github.io/eingabe_TVK_01/', description: 'Darts Eingabemaske für TV Kapellen 1.', logo: TVK_APP_LOGO, badge: 'TVK 1', isCustom: false },
@@ -362,8 +365,7 @@
         const categoriesConfig = [
             { id: 'api-football', name: 'API-Football Apps', icon: 'fa-futbol', color: 'from-blue-600/20 to-indigo-600/20 border-blue-500/30 text-blue-400', protected: false },
             { id: 'espn', name: 'ESPN Apps', icon: 'fa-tv', color: 'from-amber-600/20 to-orange-600/20 border-amber-500/30 text-amber-400', protected: false },
-            { id: 'eisen-kraemer', name: 'Eisen Krämer', icon: 'fa-industry', color: 'from-gold/20 to-amber-600/20 border-gold/40 text-gold', protected: true },
-            { id: 'pv-anlage', name: 'PV-Anlage & Energie', icon: 'fa-solar-panel', color: 'from-emerald-600/20 to-teal-600/20 border-emerald-500/30 text-emerald-400', protected: true },
+            { id: 'privat', name: 'Privat', icon: 'fa-user-shield', color: 'from-emerald-600/20 to-teal-600/20 border-emerald-500/30 text-emerald-400', protected: true },
             { id: 'darts-eingabe', name: 'Darts Eingabemasken', icon: 'fa-bullseye', color: 'from-purple-600/20 to-pink-600/20 border-purple-500/30 text-purple-400', protected: true },
             { id: 'tv-kapellen', name: 'TV Kapellen', icon: 'fa-shield-halved', color: 'from-gold/20 to-yellow-600/20 border-gold/40 text-gold', protected: true },
             { id: 'scherpenberger', name: 'Scherpenberger', icon: 'fa-crosshairs', color: 'from-red-600/20 to-rose-600/20 border-red-500/30 text-red-400', protected: true }
@@ -401,7 +403,7 @@
         function handleCategorySelection(category) {
             const catObj = categoriesConfig.find(c => c.id === category);
             if(catObj && catObj.protected) {
-                let sessionKey = category === 'eisen-kraemer' ? 'eisen_kraemer_unlocked' : category === 'pv-anlage' ? 'pv_anlage_unlocked' : category === 'darts-eingabe' ? 'darts_eingabe_unlocked' : category === 'tv-kapellen' ? 'tv_kapellen_unlocked' : 'scherpenberger_unlocked';
+                let sessionKey = category + '_unlocked';
                 const unlocked = sessionStorage.getItem(sessionKey);
                 if(unlocked === 'true') {
                     activateCategory(category);
@@ -421,10 +423,13 @@
         function verifyCategoryPassword(e) {
             e.preventDefault();
             const val = document.getElementById('categoryAccessPassword').value;
-            let correctPassword = pendingProtectedCategory === 'scherpenberger' ? SCHERPENBERGER_PASSWORD : (pendingProtectedCategory === 'darts-eingabe' || pendingProtectedCategory === 'tv-kapellen') ? TVK_PASSWORD : CATEGORY_PASSWORD;
+            let correctPassword = PRIVAT_PASSWORD;
+            if(pendingProtectedCategory === 'darts-eingabe') correctPassword = DARTS_EINGABE_PASSWORD;
+            if(pendingProtectedCategory === 'tv-kapellen') correctPassword = TV_KAPELLEN_PASSWORD;
+            if(pendingProtectedCategory === 'scherpenberger') correctPassword = SCHERPENBERGER_PASSWORD;
             
             if(val === correctPassword) {
-                let sessionKey = pendingProtectedCategory === 'eisen-kraemer' ? 'eisen_kraemer_unlocked' : pendingProtectedCategory === 'pv-anlage' ? 'pv_anlage_unlocked' : pendingProtectedCategory === 'darts-eingabe' ? 'darts_eingabe_unlocked' : pendingProtectedCategory === 'tv-kapellen' ? 'tv_kapellen_unlocked' : 'scherpenberger_unlocked';
+                let sessionKey = pendingProtectedCategory + '_unlocked';
                 sessionStorage.setItem(sessionKey, 'true');
                 const targetCat = pendingProtectedCategory;
                 closeCategoryAuthModal();
