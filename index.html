@@ -240,7 +240,7 @@
                         <option value="privat">Privat (Eisen Krämer & PV)</option>
                         <option value="darts-eingabe">Darts Eingabemasken</option>
                         <option value="tv-kapellen">TV Kapellen</option>
-                        <option value="scherpenberger">Scherpenberger</option>
+                        <option value="scherpenberger">Scherpenberger & Doko</option>
                     </select>
                 </div>
                 <div>
@@ -308,7 +308,7 @@
             { id: 'af-20', name: 'Statistik Tool 1. Bundesliga', category: 'api-football', url: 'https://zechenhauer.github.io/bundesliga-team-statistik/', description: 'Detailliertes Statistik-Tool für die 1. Bundesliga.', logo: 'https://media.api-sports.io/football/leagues/78.png', badge: 'Statistik', isCustom: false },
             { id: 'af-21', name: 'SC Freiburg Design 1. BL', category: 'api-football', url: 'https://zechenhauer.github.io/sc-freiburg/', description: 'Spezifisches SC Freiburg Team-Design und Live-Daten.', logo: 'https://media.api-sports.io/football/teams/160.png', badge: 'SCF', isCustom: false },
 
-            // ESPN APPS (Mit korrektem HSV-Logo Team-ID 43)
+            // ESPN APPS
             { id: 'espn-1', name: '1. Bundesliga (ESPN)', category: 'espn', url: 'https://zechenhauer.github.io/espn_1.bl/', description: 'Live-Daten und Ticker der 1. Bundesliga über ESPN.', logo: 'https://media.api-sports.io/football/leagues/78.png', badge: 'ESPN', isCustom: false },
             { id: 'espn-2', name: '2. Bundesliga (ESPN)', category: 'espn', url: 'https://zechenhauer.github.io/2te_liga/', description: 'Zweite Bundesliga Spieltag- und Tabellenansicht.', logo: 'https://media.api-sports.io/football/leagues/79.png', badge: 'ESPN', isCustom: false },
             { id: 'espn-3', name: '3. Liga & MSV (ESPN)', category: 'espn', url: 'https://zechenhauer.github.io/3_liga_msv/', description: '3. Liga Ticker mit Fokus auf den MSV Duisburg.', logo: 'https://media.api-sports.io/football/leagues/80.png', badge: 'ESPN', isCustom: false },
@@ -359,7 +359,8 @@
             { id: 'tvk-13', name: 'Vereinranking Liga Spieler', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/Spieler_Vereinsranking/', description: 'Internes Vereinsranking der Ligaspieler.', logo: TVK_APP_LOGO, badge: 'Ranking', isCustom: false },
             { id: 'tvk-14', name: 'Statistiken Liga Spieler mit AVG', category: 'tv-kapellen', url: 'https://zechenhauer.github.io/statistiken_average/', description: 'Detaillierte Spielerstatistiken inklusive 3-Dart-Average.', logo: TVK_APP_LOGO, badge: 'Averages', isCustom: false },
 
-            // SCHERPENBERGER APPS
+            // SCHERPENBERGER & DOKO APPS (Inkl. Doko Bundesliga 2026)
+            { id: 'scherp-0', name: 'Doko Bundesliga 2026', category: 'scherpenberger', url: 'https://zechenhauer.github.io/bundesliga_doko/', description: 'Doppelkopf Bundesliga Live-Tabelle, Spieltag und Ergebnisse.', logo: '', icon: 'fa-clone', badge: 'DoKo', isCustom: false },
             { id: 'scherp-1', name: 'Kaderplaner', category: 'scherpenberger', url: 'https://zechenhauer.github.io/Spieltags-Planung/', description: 'Kader- und Spieltagsplanung für Scherpenberg.', logo: ADMIN_AVATAR, badge: 'Kader', isCustom: false },
             { id: 'scherp-2', name: 'Aktueller Stand zum Löhnen', category: 'scherpenberger', url: 'https://zechenhauer.github.io/scherpenberger_dartkasse/', description: 'Dartkasse und aktueller Stand der Strafen / Einzahlungen.', logo: ADMIN_AVATAR, badge: 'Dartkasse', isCustom: false }
         ];
@@ -374,7 +375,7 @@
             { id: 'privat', name: 'Privat', icon: 'fa-user-shield', color: 'from-emerald-600/20 to-teal-600/20 border-emerald-500/30 text-emerald-400', protected: true },
             { id: 'darts-eingabe', name: 'Darts Eingabemasken', icon: 'fa-bullseye', color: 'from-purple-600/20 to-pink-600/20 border-purple-500/30 text-purple-400', protected: true },
             { id: 'tv-kapellen', name: 'TV Kapellen', icon: 'fa-shield-halved', color: 'from-gold/20 to-yellow-600/20 border-gold/40 text-gold', protected: true },
-            { id: 'scherpenberger', name: 'Scherpenberger', icon: 'fa-crosshairs', color: 'from-red-600/20 to-rose-600/20 border-red-500/30 text-red-400', protected: true }
+            { id: 'scherpenberger', name: 'Scherpenberger & Doko', icon: 'fa-crosshairs', color: 'from-red-600/20 to-rose-600/20 border-red-500/30 text-red-400', protected: true }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -704,8 +705,8 @@
             // Counts aktualisieren sich automatisch im Grid
         }
 
-        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
-        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); document.getElementById('addAppForm').reset(); }
+        function openAddModal() { document.getElementById('addModal').classList.add('flex'); document.getElementById('addModal').classList.remove('hidden'); }
+        function closeAddModal() { document.getElementById('addModal').classList.remove('flex'); document.getElementById('addModal').classList.add('hidden'); document.getElementById('addAppForm').reset(); }
 
         function saveNewApp(e) {
             e.preventDefault();
